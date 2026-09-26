@@ -1,0 +1,78 @@
+% ------------------------------------------------------------------
+% HW1 Problem 2(f) -- derivation of the cosine-wave velocity commands
+% Paste this into the Task 2 section of the solution file.
+% Needs: \usepackage{amsmath}
+% ------------------------------------------------------------------
+\subsection*{Problem 2(f): Driving the turtle on a cosine wave}
+
+\paragraph{Model.} The turtle has differential-drive (unicycle) kinematics. It can only be
+commanded a forward speed $v$ along its body $x$-axis and a turn rate $\omega$ about $z$,
+i.e.\ \texttt{linear.x} and \texttt{angular.z} of the \texttt{Twist} on
+\texttt{/turtle1/cmd\_vel}. In the world frame,
+\begin{equation}
+  \dot{x} = v\cos\theta, \qquad \dot{y} = v\sin\theta, \qquad \dot{\theta} = \omega .
+  \label{eq:unicycle}
+\end{equation}
+The task is the inverse problem: choose $v(t)$ and $\omega(t)$ so that the turtle follows a
+prescribed path.
+
+\paragraph{Desired path.} Move to the right at a constant rate $c$ while oscillating in $y$:
+\begin{equation}
+  x(t) = c\,t, \qquad y(t) = A\cos(kct),
+\end{equation}
+so the trace is $y = A\cos(kx)$. At $t=0$ the slope is zero, which matches the turtle's
+default heading $\theta = 0$.
+
+\paragraph{Derivatives.}
+\begin{align}
+  \dot{x} &= c, & \ddot{x} &= 0, \\
+  \dot{y} &= -Akc\,\sin(kct), & \ddot{y} &= -Ak^{2}c^{2}\cos(kct).
+\end{align}
+
+\paragraph{Forward speed.} Squaring and adding the first two equations of \eqref{eq:unicycle}
+gives $\dot{x}^2+\dot{y}^2 = v^2$, so
+\begin{equation}
+  v(t) = \sqrt{\dot{x}^{2}+\dot{y}^{2}}
+       = \sqrt{c^{2} + A^{2}k^{2}c^{2}\sin^{2}(kct)}
+       = c\sqrt{1 + A^{2}k^{2}\sin^{2}(kct)} .
+\end{equation}
+
+\paragraph{Heading and turn rate.} Dividing the same two equations gives
+$\tan\theta = \dot{y}/\dot{x}$, so $\theta = \arctan(u)$ with
+\begin{equation}
+  u = \frac{\dot{y}}{\dot{x}} = -Ak\sin(kct), \qquad
+  \dot{u} = \frac{\ddot{y}}{c} = -Ak^{2}c\cos(kct), \qquad
+  u^{2} = A^{2}k^{2}\sin^{2}(kct).
+\end{equation}
+Using $\frac{d}{dt}\arctan(u) = \dfrac{\dot{u}}{1+u^{2}}$,
+\begin{equation}
+  \omega(t) = \dot{\theta} = \frac{\dot{u}}{1+u^{2}}
+  = \frac{-Ak^{2}c\,\cos(kct)}{1 + A^{2}k^{2}\sin^{2}(kct)} .
+\end{equation}
+
+\paragraph{Checks.}
+\begin{itemize}
+  \item Top of the wave, $t=0$: $\sin = 0$, $\cos = 1$, so $v = c$ and
+        $\omega = -Ak^{2}c < 0$, the hardest right turn, since the path bends down.
+        The turning radius there is $R = v/\omega = -1/(Ak^{2})$, i.e.\ the ICR is
+        $1/(Ak^{2})$ to the turtle's right.
+  \item Steepest point, $kct = \pi/2$: $\cos = 0$, so $\omega = 0$ (the bend changes
+        direction) and $v = c\sqrt{1+A^{2}k^{2}}$ is largest, because the turtle covers
+        the most ground there.
+\end{itemize}
+
+\paragraph{Implementation and result.} Node \texttt{turtle\_wave/cosine\_wave} with
+$A=2$, $k=1$, $c=1$, turtle teleported to $(0.5,\,7.0,\,0)$.
+\begin{enumerate}
+  \item \emph{Open loop} ($v(t)$, $\omega(t)$ published at 50\,Hz from a clock): the first
+        half-wave was correct, then the path drifted and curled. Nothing corrects late or
+        missed commands, so heading errors accumulate, as with encoder-only dead reckoning.
+  \item \emph{With pose feedback}: the same $v$ and $\omega$ are used as feed-forward, evaluated
+        at the turtle's measured position ($kct \to k(x-x_0)$), plus a correction
+        $\omega = \omega_{\mathrm{ff}} - K_\theta(\theta-\theta_{\mathrm{des}}) - K_y(y-y_{\mathrm{des}})$,
+        $K_\theta = 4$, $K_y = 2$, using \texttt{/turtle1/pose}. The turtle traced a clean
+        cosine of about 1.5 periods between $y=3$ and $y=7$.
+\end{enumerate}
+
+\noindent\textit{AI use: Claude used for the ROS node boilerplate, build steps, the
+pose-feedback correction, and typesetting this derivation in \LaTeX.}
